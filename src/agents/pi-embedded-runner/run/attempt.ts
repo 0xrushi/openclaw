@@ -86,6 +86,7 @@ import {
   createSystemPromptOverride,
 } from "../system-prompt.js";
 import { splitSdkTools } from "../tool-split.js";
+import { stripThinkingFromAssistantToolCallMessages } from "../toolcall-thinking.js";
 import { describeUnknownError, mapThinkingLevel } from "../utils.js";
 import { detectAndLoadPromptImages } from "./images.js";
 
@@ -453,16 +454,9 @@ export async function runEmbeddedAttempt(
         model: params.model,
       });
 
-      const openaiCompletionsTools =
-        params.model.api === "openai-completions" &&
-        (params.model.compat as { openaiCompletionsTools?: unknown } | undefined)
-          ?.openaiCompletionsTools === true;
-
       const { builtInTools, customTools } = splitSdkTools({
         tools,
         sandboxEnabled: !!sandbox?.enabled,
-        modelApi: params.model.api,
-        openaiCompletionsTools,
       });
 
       // Add client tools (OpenResponses hosted tools) to customTools
@@ -523,6 +517,15 @@ export async function runEmbeddedAttempt(
 
       // Force a stable streamFn reference so vitest can reliably mock @mariozechner/pi-ai.
       activeSession.agent.streamFn = streamSimple;
+
+      // Remove thinking blocks from assistant messages that also include tool calls.
+      // Some OpenAI-compatible APIs reject assistant messages that include both `content` and
+      // `thinking` when tool calls are present (pi-ai surfaces this as a template error).
+      const originalStreamFn = activeSession.agent.streamFn;
+      activeSession.agent.streamFn = ((model: unknown, context: unknown, options?: unknown) => {
+        const sanitized = stripThinkingFromAssistantToolCallMessages(context);
+        return (originalStreamFn as any)(model, sanitized, options);
+      }) as any;
 
       applyExtraParamsToAgent(
         activeSession.agent,

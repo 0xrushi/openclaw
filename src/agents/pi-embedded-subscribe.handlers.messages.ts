@@ -201,9 +201,15 @@ export function handleMessageEnd(
   ctx.recordAssistantUsage((assistantMessage as { usage?: unknown }).usage);
   // Only promote thinking tags to blocks if there are no tool calls.
   // An assistant message with tool calls cannot have both content and thinking blocks.
+  const content = (assistantMessage as { content?: unknown }).content;
   const hasToolCalls =
-    Array.isArray((assistantMessage as { toolCalls?: unknown }).toolCalls) &&
-    (assistantMessage as { toolCalls: unknown[] }).toolCalls.length > 0;
+    Array.isArray(content) &&
+    content.some(
+      (block) =>
+        Boolean(block) &&
+        typeof block === "object" &&
+        (block as { type?: unknown }).type === "toolCall",
+    );
   if (!hasToolCalls) {
     promoteThinkingTagsToBlocks(assistantMessage);
   }
