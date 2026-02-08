@@ -199,7 +199,14 @@ export function handleMessageEnd(
 
   const assistantMessage = msg;
   ctx.recordAssistantUsage((assistantMessage as { usage?: unknown }).usage);
-  promoteThinkingTagsToBlocks(assistantMessage);
+  // Only promote thinking tags to blocks if there are no tool calls.
+  // An assistant message with tool calls cannot have both content and thinking blocks.
+  const hasToolCalls =
+    Array.isArray((assistantMessage as { toolCalls?: unknown }).toolCalls) &&
+    (assistantMessage as { toolCalls: unknown[] }).toolCalls.length > 0;
+  if (!hasToolCalls) {
+    promoteThinkingTagsToBlocks(assistantMessage);
+  }
 
   const rawText = extractAssistantText(assistantMessage);
   appendRawStream({
