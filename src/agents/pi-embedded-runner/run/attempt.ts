@@ -521,7 +521,7 @@ export async function runEmbeddedAttempt(
       // Remove thinking blocks from assistant messages that also include tool calls.
       // Some OpenAI-compatible APIs reject assistant messages that include both `content` and
       // `thinking` when tool calls are present (pi-ai surfaces this as a template error).
-      const originalStreamFn = (activeSession.agent.streamFn ?? streamSimple) as StreamFn;
+      const originalStreamFn: StreamFn = activeSession.agent.streamFn ?? streamSimple;
       activeSession.agent.streamFn = ((model, context, options) => {
         const sanitized = stripThinkingFromAssistantToolCallMessages(context) as typeof context;
         return originalStreamFn(model, sanitized, options);
